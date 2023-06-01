@@ -1,0 +1,257 @@
+import math
+import pygame
+from FG_model import *
+
+pygame.init()
+pygame.font.init()
+
+screen_width = 1000
+screen_height = 700
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("farming game")
+
+bg_img = pygame.image.load("images/background.png")
+bg_img = pygame.transform.scale(bg_img, (screen_width, screen_height))
+
+
+cursor = pygame.mouse.get_pos()
+
+
+class Tool:
+    def __init__(self, name, pos_x=400, posy=300, is_active=False):
+        self.name = name
+        self.pos_x = pos_x
+        self.posy = posy
+        self.is_active = is_active
+
+    def mouse_locate(self):
+        self.pos_x = cursor[0]
+        self.posy = cursor[1]
+
+
+class Seed:
+    def __init__(self, name, cost, seed_image):
+        self.name = name
+        self.cost = cost
+        self.seed_IMG = seed_image
+
+
+hoe = Tool("hoe")
+bucket = Tool("bucket")
+
+wheat = Seed("wheat", 10, "1")
+carrot = Seed("carrot", 20, "2")
+potato = Seed("potato", 15, "3")
+
+
+def image_render(img, img_x, img_y, scale=1.0):
+    img = pygame.transform.scale(img, (screen_width*scale, screen_width*scale))
+    img_rect = img.get_rect()
+    img_rect = img_rect.move((img_x, img_y))
+    screen.blit(img, img_rect)
+    return img_rect
+
+
+unclaimed_price = 100
+an = 1
+active_key = 1
+move = True
+running = True
+seed_tick = 0
+watering_can_max = 5
+watering_can = watering_can_max
+
+while running:
+    screen.blit(bg_img, (0, 0))
+    cursor = pygame.mouse.get_pos()
+    font = pygame.font.Font(None, 36)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        # scrolling
+        max_scroll = 5
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y > 0:
+                active_key -= 0.5
+                if active_key < 1:
+                    active_key = max_scroll
+            if event.y < 0:
+                active_key += 0.5
+                if active_key > max_scroll:
+                    active_key = 1
+
+        # key press
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            active_key -= 1
+            if active_key < 1:
+                active_key = max_scroll
+        if keys[pygame.K_RIGHT]:
+            active_key += 1
+            if active_key > max_scroll:
+                active_key = 1
+
+        if keys[pygame.K_F1]:
+            print(cursor)
+        if keys[pygame.K_F2] or keys[pygame.K_2]:
+            my_game.add('money', 100)
+        if keys[pygame.K_F3] or keys[pygame.K_3]:
+            if my_game.inventory_dict['Money'] >= 12:
+                my_game.add('money', -12)
+                my_game.add('potato', 1)
+        if keys[pygame.K_F4] or keys[pygame.K_4]:
+            if my_game.inventory_dict['Money'] >= 30:
+                my_game.add('money', -30)
+                my_game.add('carrot', 1)
+
+        # ITEM RENDER
+        if active_key == 1:
+            ToolsIMG = pygame.image.load("images/hoe.png")
+        if active_key == 2:
+            if watering_can > 0:
+                ToolsIMG = pygame.image.load("images/can_full.png")
+            else:
+                ToolsIMG = pygame.image.load("images/can_empty.png")
+        if active_key == 3:
+            ToolsIMG = pygame.image.load("images/seed_wheat.png")
+        if active_key == 4:
+            ToolsIMG = pygame.image.load("images/seed_potato.png")
+        if active_key == 5:
+            ToolsIMG = pygame.image.load("images/seed_carrot.png")
+
+    # score render
+    image_render(pygame.image.load('images/menu.png'), -30, -30, 1/3)
+
+    score_text = font.render(f'Money: {my_game.inventory("money")}', True, (255, 255, 0))
+    screen.blit(score_text, (10, 10))
+
+    land_price = font.render(f"Buy Land: {unclaimed_price}$", True, (113, 222, 113))
+    screen.blit(land_price, (10, 50))
+
+    Wheat_count = font.render(f'• Wheat: inf', True, (232, 255, 111))
+    screen.blit(Wheat_count, (10, 90))
+
+    Potato_count = font.render(f'• Potato: {my_game.inventory("potato")}', True, (196, 212, 118))
+    screen.blit(Potato_count, (10, 130))
+    potato_price = font.render(f"[F3/3] Price: 12$", True, (255, 252, 199))
+    screen.blit(potato_price, (10, 155))
+
+    Carrot_count = font.render(f'• Carrot: {my_game.inventory("carrot")}', True, (249, 210, 18))
+    screen.blit(Carrot_count, (10, 200))
+    carrot_price = font.render(f"[F4/4] Price: 30$", True, (255, 220, 199))
+    screen.blit(carrot_price, (10, 225))
+
+    hoe.mouse_locate()
+
+    # LAND RENDERER
+    x, y = 0, 0
+    for w in range(my_game.cords()[0]):
+        y = 0
+        x += screen_width / (my_game.cords()[0] + 2)
+        for h in range(my_game.cords()[1]):
+            y += screen_height / (my_game.cords()[1] + 2)
+
+            if my_game.land(w, h).isClaimed:
+                land_img = "land"
+                if my_game.land(w, h).isWet:
+                    land_img = "land_wet"
+                if my_game.land(w, h).isMowed:
+                    land_img = "land_mowed"
+                    if my_game.land(w, h).isWet:
+                        land_img = "land_mowed_wet"
+            else:
+                land_img = "land_unclaimed"
+
+            # render land and seed
+            rect = image_render(pygame.image.load(f"images/{land_img}.png"), x + 120, y, 1/8)
+            if my_game.land(w, h).seed[2] > 0:
+                seed = my_game.land(w, h).seed[0]
+                age = my_game.land(w, h).seed[2]
+                image_render(pygame.image.load(f"images/{seed}{age}.png"), x, y, 1 / 8)
+
+            lake_rect = image_render(pygame.image.load(f"images/pool.png"), screen_width - 125, 0, 1/8)
+
+            # interaction with land
+            touchingMouse = rect.collidepoint(cursor)
+            if touchingMouse:
+                # show land cost
+                if not my_game.land(w, h).isClaimed:
+                    land_price = font.render(f"Cost: {unclaimed_price}$", True, (113, 222, 113))
+                    screen.blit(land_price, (cursor[0] - 50, cursor[1] - 35))
+
+                # interaction
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    active_key = math.floor(active_key)
+                    if active_key == 1:
+                        if my_game.land(w, h).seed[0] == '':
+                            my_game.land(w, h).mow()
+                        else:
+                            if my_game.land(w, h).seed[2] == my_game.max_age:  # max growth age
+                                if my_game.land(w, h).seed[0] == 'wheat':
+                                    my_game.add('money', 5)
+                                if my_game.land(w, h).seed[0] == 'potato':
+                                    my_game.add('money', 15)
+                                if my_game.land(w, h).seed[0] == 'carrot':
+                                    my_game.add('money', 35)
+
+                                my_game.land(w, h).plant('', age=0)
+
+                    # water
+                    if active_key == 2 and watering_can > 0:
+                        if my_game.land(w, h).water():
+                            watering_can -= 1
+                            pass
+
+                    # plant
+                    if 3 <= active_key <= 5 and my_game.land(w, h).seed[0] == '':
+                        seed = ''
+                        if active_key == 3:
+                            seed = 'wheat'
+                        if active_key == 4:
+                            if my_game.inventory_dict['Potato'] >= 1:
+                                my_game.add('potato', -1)
+                                seed = 'potato'
+                        if active_key == 5:
+                            if my_game.inventory_dict['Carrot'] >= 1:
+                                my_game.add('carrot', -1)
+                                seed = 'carrot'
+                        if seed != '':
+                            my_game.land(w, h).plant(seed, 1)
+
+                    # buy land
+                    if not my_game.land(w, h).isClaimed:
+                        if my_game.inventory_dict['Money'] >= unclaimed_price:
+                            my_game.add('money', unclaimed_price * -1)
+                            unclaimed_price += 20
+                            my_game.land(w, h).claim()
+
+            touchingMouse = lake_rect.collidepoint(cursor)
+            if touchingMouse:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    active_key = math.floor(active_key)
+                    if math.floor(active_key) == 2 and watering_can == 0:
+                        watering_can = watering_can_max
+
+    # render tool
+    image_render(ToolsIMG, hoe.pos_x, hoe.posy, 1 / 7)
+    if math.floor(active_key) == 2:
+        watering = font.render(f'{watering_can}/{watering_can_max}', True, (15, 80, 140))
+        screen.blit(watering, (cursor[0] - 20, cursor[1] + 70))
+
+    # wheat growth + win detection
+    lands_claimed = 0
+    for w in range(my_game.cords()[0]):
+        for h in range(my_game.cords()[1]):
+            my_game.land(w, h).grow()
+            if my_game.land(w, h).isClaimed:
+                lands_claimed += 1
+            if my_game.land(w, h).wet > 0:
+                my_game.land(w, h).wet -= 1
+            else:
+                my_game.land(w, h).water(False)
+
+    if lands_claimed == my_game.cords()[0] * my_game.cords()[1]:
+        you_won = font.render(f'YOU WON! You are an excellent farmer!', True, (255, 213, 0))
+        screen.blit(you_won, (cursor[0] - 200, cursor[1] - 35))
+    pygame.display.update()
