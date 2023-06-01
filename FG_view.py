@@ -58,8 +58,17 @@ active_key = 1
 move = True
 running = True
 seed_tick = 0
+
+# watering can variables
 watering_can_max = 5
 watering_can = watering_can_max
+
+# buy and sell variables
+sell_wheat = 5
+buy_potato = 12
+sell_potato = 15
+buy_carrot = 30
+sell_carrot = 35
 
 while running:
     screen.blit(bg_img, (0, 0))
@@ -94,15 +103,17 @@ while running:
 
         if keys[pygame.K_F1]:
             print(cursor)
+
+        # buy crops
         if keys[pygame.K_F2] or keys[pygame.K_2]:
             my_game.add('money', 100)
         if keys[pygame.K_F3] or keys[pygame.K_3]:
-            if my_game.inventory_dict['Money'] >= 12:
-                my_game.add('money', -12)
+            if my_game.inventory_dict['Money'] >= buy_potato:
+                my_game.add('money', -1 * buy_potato)
                 my_game.add('potato', 1)
         if keys[pygame.K_F4] or keys[pygame.K_4]:
-            if my_game.inventory_dict['Money'] >= 30:
-                my_game.add('money', -30)
+            if my_game.inventory_dict['Money'] >= buy_carrot:
+                my_game.add('money', -buy_carrot)
                 my_game.add('carrot', 1)
 
         # ITEM RENDER
@@ -121,26 +132,39 @@ while running:
             ToolsIMG = pygame.image.load("images/seed_carrot.png")
 
     # score render
-    image_render(pygame.image.load('images/menu.png'), -30, -30, 1/3)
+    image_render(pygame.image.load('images/menu.png'), -30, -30, 0.37)
 
-    score_text = font.render(f'Money: {my_game.inventory("money")}', True, (255, 255, 0))
-    screen.blit(score_text, (10, 10))
+    score_text = font.render(f'{my_game.inventory("money")}$', True, (113, 222, 113))
+    screen.blit(score_text, (90, 28))
 
-    land_price = font.render(f"Buy Land: {unclaimed_price}$", True, (113, 222, 113))
-    screen.blit(land_price, (10, 50))
+    Wheat_count = font.render(f'inf    -     {sell_wheat}$', True, (179, 172, 48))
+    screen.blit(Wheat_count, (85, 90))
 
-    Wheat_count = font.render(f'• Wheat: inf', True, (232, 255, 111))
-    screen.blit(Wheat_count, (10, 90))
+    Potato_y = 132
+    Potato_x = 89
+    Potato_color = (196, 212, 118)
+    Potato_amount = font.render(f'{my_game.inventory_dict["Potato"]}', True, Potato_color)
+    screen.blit(Potato_amount, (Potato_x, Potato_y))
+    Potato_cost = font.render(f'{buy_potato}$', True, Potato_color)
+    screen.blit(Potato_cost, (Potato_x+40, Potato_y))
+    Potato_sell = font.render(f'{sell_potato}$', True, Potato_color)
+    screen.blit(Potato_sell, (Potato_x+100, Potato_y))
+    Potato_key = font.render(f'[F3]', True, Potato_color)
+    screen.blit(Potato_key, (Potato_x+142, Potato_y))
 
-    Potato_count = font.render(f'• Potato: {my_game.inventory("potato")}', True, (196, 212, 118))
-    screen.blit(Potato_count, (10, 130))
-    potato_price = font.render(f"[F3/3] Price: 12$", True, (255, 252, 199))
-    screen.blit(potato_price, (10, 155))
+    Carrot_y = 182
+    Carrot_x = 89
+    Carrot_color = (212, 175, 119)
+    Carrot_amount = font.render(f'{my_game.inventory_dict["Carrot"]}', True, Carrot_color)
+    screen.blit(Carrot_amount, (Carrot_x, Carrot_y))
+    Carrot_cost = font.render(f'{buy_carrot}$', True, Carrot_color)
+    screen.blit(Carrot_cost, (Carrot_x+40, Carrot_y))
+    Carrot_sell = font.render(f'{sell_carrot}$', True, Carrot_color)
+    screen.blit(Carrot_sell, (Carrot_x+100, Carrot_y))
+    Carrot_key = font.render(f'[F4]', True, Carrot_color)
+    screen.blit(Carrot_key, (Carrot_x+142, Carrot_y))
 
-    Carrot_count = font.render(f'• Carrot: {my_game.inventory("carrot")}', True, (249, 210, 18))
-    screen.blit(Carrot_count, (10, 200))
-    carrot_price = font.render(f"[F4/4] Price: 30$", True, (255, 220, 199))
-    screen.blit(carrot_price, (10, 225))
+
 
     hoe.mouse_locate()
 
@@ -168,11 +192,11 @@ while running:
             if my_game.land(w, h).seed[2] > 0:
                 seed = my_game.land(w, h).seed[0]
                 age = my_game.land(w, h).seed[2]
-                image_render(pygame.image.load(f"images/{seed}{age}.png"), x, y, 1 / 8)
+                image_render(pygame.image.load(f"images/{seed}{age}.png"), x + 120, y, 1 / 8)
 
             lake_rect = image_render(pygame.image.load(f"images/pool.png"), screen_width - 125, 0, 1/8)
 
-            # interaction with land
+            # `inter`action with land
             touchingMouse = rect.collidepoint(cursor)
             if touchingMouse:
                 # show land cost
@@ -188,12 +212,13 @@ while running:
                             my_game.land(w, h).mow()
                         else:
                             if my_game.land(w, h).seed[2] == my_game.max_age:  # max growth age
+                                # sell crops
                                 if my_game.land(w, h).seed[0] == 'wheat':
-                                    my_game.add('money', 5)
+                                    my_game.add('money', sell_wheat)
                                 if my_game.land(w, h).seed[0] == 'potato':
-                                    my_game.add('money', 15)
+                                    my_game.add('money', sell_potato)
                                 if my_game.land(w, h).seed[0] == 'carrot':
-                                    my_game.add('money', 35)
+                                    my_game.add('money', sell_carrot)
 
                                 my_game.land(w, h).plant('', age=0)
 
